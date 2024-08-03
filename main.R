@@ -14,7 +14,7 @@ library(readr)
 library(lubridate)
 library(stringr)
 library(janitor)
-
+library(writexl)
 
 # download files into dat/date, find way to automate? ---------------------
 
@@ -137,13 +137,13 @@ df_Drafters <- v_files_Drafters %>% purrr::map(~ readr::read_csv(.x)) %>%
 
 
 # clean_player_name <- purrr::as_mapper(\(x) dplyr::mutate(x = stringr::str_replace_all(x, "[^[:alnum:]]", " ") %>% stringr::str_to_lower(.)))
-df_FFPC <- v_files_FFPC %>% purrr::map(~ readr::read_csv(.x)) %>%
+l_FFPC <- v_files_FFPC %>% purrr::map(~ readr::read_csv(.x)) %>%
   purrr::map(~ dplyr::mutate_all(.x, as.character)) %>%
   purrr::set_names(nm = v_files_FFPC) %>%
   purrr::map(~ janitor::clean_names(.x)) %>%
   purrr::map(~ dplyr::rename_with(.x, ~ stringr::str_replace(.x, "player_name", "name"))) %>%
   purrr::map(~ dplyr::rename_with(.x, ~ stringr::str_replace(.x, "etr_rank", "rank"))) %>%
-  purrr::map(~ dplyr::select(.x, "name", "rank")) %>% 
+  # purrr::map(~ dplyr::select(.x, "name", "rank")) %>% 
   purrr::map(~ dplyr::mutate(
     .x,
     dplyr::mutate(
@@ -157,13 +157,20 @@ df_FFPC <- v_files_FFPC %>% purrr::map(~ readr::read_csv(.x)) %>%
         stringr::str_replace(., "\\sjr|\\ssr", ""),
       rank = as.numeric(rank)
     )
-  )) %>%
+  )) 
+
+df_FFPC <- l_FFPC %>% 
   dplyr::bind_rows(.id = "filename") %>% 
   dplyr::group_by(name) %>% 
-  dplyr::summarise(rank = mean(rank, na.rm = TRUE)) %>% 
-  dplyr::arrange(rank) %>% 
-  dplyr::mutate(idx = dplyr::row_number()) %>% 
-  dplyr::select(idx, name, rank)
+  dplyr::summarize(mean_rank = mean(rank, na.rm = TRUE)) %>% 
+  dplyr::arrange("rank") %>% 
+  dplyr::mutate(idx = dplyr::row_number())  %>% 
+  dplyr::select(idx, dplyr::everything()) %>% 
+  dplyr::left_join(., l_FFPC[[1]], by = "name") %>% 
+  dplyr::left_join(., l_FFPC[[2]], by = "name") %>% 
+  purrr::discard(~all(is.na(.x)))
+# %>% 
+#   tidyr::pivot_wider(id_cols = c(idx, name, mean_rank))
   
 # print output ------------------------------------------------------------
 
@@ -215,4 +222,5 @@ file_date_FFPC <- dir(path = "dat/FFPC", full.names = TRUE) %>%
   sort() %>% 
   tail(1) %>% 
   stringr::str_extract("[0-9]{4}-[0-9]{2}-[0-9]{2}")
-readr::write_csv(df_FFPC, file = file.path(file_path_FFPC, stringr::str_c(file_date_FFPC, "_FFPC_agg_ranks.csv")), na = "")
+# readr::write_csv(df_FFPC, file = file.path(file_path_FFPC, stringr::str_c(file_date_FFPC, "_FFPC_agg_ranks.csv")), na = "")
+writexl::write_xlsx(df_FFPC, path = file.path(file_path_FFPC, stringr::str_c(file_date_FFPC, "_FFPC_agg_ranks.xlsx")))
