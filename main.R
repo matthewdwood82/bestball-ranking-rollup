@@ -87,6 +87,7 @@ df_UD <- v_files_UD %>%
   dplyr::bind_rows(.id = "filename") %>% 
   dplyr::group_by(id) %>% 
   dplyr::summarise(rank = mean(rank, na.rm = TRUE)) %>% 
+  tidyr::drop_na(id) %>% 
   dplyr::arrange(rank)
 
 df_UD_Marathon <- v_files_UD_Marathon %>% 
@@ -163,7 +164,7 @@ df_FFPC <- l_FFPC %>%
   dplyr::bind_rows(.id = "filename") %>% 
   dplyr::group_by(name) %>% 
   dplyr::summarize(mean_rank = mean(rank, na.rm = TRUE)) %>% 
-  dplyr::arrange("mean_rank") %>% 
+  dplyr::arrange(mean_rank) %>% 
   dplyr::mutate(idx = dplyr::row_number())  %>% 
   dplyr::select(idx, dplyr::everything()) %>% 
   dplyr::left_join(., l_FFPC[[1]], by = "name") %>% 
